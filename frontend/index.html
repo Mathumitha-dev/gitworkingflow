@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+    <h1>Task Manager</h1>
+    <form id="taskform">
+        <label>Title *</label>
+    <input type="text" id="title">
+    <p id="titleError"></p>
+    <lable>Description</lable>
+    <input type="text" id="description">
+    <label>Due Date</label>
+    <input type="date" id="dueDate">
+    <label>Priority</label>
+    <select id="priority">
+      <option value="Low">Low</option>
+      <option value="Medium">Medium</option>
+      <option value="High">High</option>
+    </select>
+    <label>Category</label>
+    <input type="text" id="category">
+    <button type="button" onclick="createTask()">Add</button>
+      
+    </form>
+    <h1>Tasks</h1>
+    <div id="tasklist"></div>
+    <script src="js/task/createtask.js">
+
+    </script>
+    
+</body>
+</html>
