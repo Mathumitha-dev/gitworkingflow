@@ -1,33 +1,10 @@
-const express = require("express");
-
+const taskroutes=require("./src/routes/taskRoute.js");
+const express=require("express");
+const cors=require("cors")
 const app = express();
-
 app.use(express.json());
-
-let tasks = [];
-app.get("/tasks", getTasks);
-
-
-
-function getTasks(req, res) {
-    res.json(tasks);
-}
-
-function addTask(req, res) {
-    const task = {
-        title: req.body.title
-    };
-    tasks.push(task);
-    res.json(task);
-}
-
-app.post("/tasks", addTask);
-
-
-
-
-
-
-
-
-
+app.use(cors());
+app.use(taskroutes);;
+app.listen(3000,function(){
+    console.log("server is running on port 3000");
+})
