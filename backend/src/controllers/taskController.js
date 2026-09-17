@@ -1,11 +1,12 @@
 const taskService = require("../services/taskService");
 
 async function createTask(req, res) {
-const title = req.body.title;
-const description = req.body.description;
-const dueDate = req.body.dueDate;
-const priority = req.body.priority;
-const category = req.body.category;
+const body=req.body;
+const title = body.title;
+const description = body.description;
+const dueDate = body.dueDate;
+const priority = body.priority;
+const category = body.category;
 if (!title || title.trim() === "") {
     return res.json({
      message: "Title is required"
