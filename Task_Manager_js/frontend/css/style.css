@@ -1,0 +1,98 @@
+
+body{
+    font-family:Arial,sans-serif;
+    margin:30px;
+    background-color:lightblue;
+}
+
+form{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+}
+
+input,select,button{
+    padding:8px;
+}
+
+.task{
+    border:2px solid #4c0b4d;
+    padding:15px;
+    margin:10px 0;
+}
+
+.task p{
+    margin:6px 0;
+}
+
+.category-chip{
+    display:inline-block;
+    padding:4px 9px;
+    margin:4px 8px 4px 0;
+    border-radius:12px;
+    color:#fff;
+    font-size:0.9em;
+}
+
+#categorySettings{
+    margin:16px 0;
+}
+
+#categorySettings form{
+    margin-bottom:8px;
+}
+
+#categorySettings input[type="color"]{
+    width:48px;
+    height:36px;
+    padding:3px;
+}
+
+#loadMoreTasks{
+    padding:12px;
+    text-align:center;
+}
+
+.task button{
+    margin-right:8px;
+    background-color: lightcoral;
+}
+
+#bulkActionBar{
+    border:1px solid #ccc;
+    padding:10px;
+    margin:10px 0;
+}
+
+#selectedCount{
+    margin-right:15px;
+    font-weight:bold;
+}
+
+body.dark{
+    background-color:#222;
+    color:white;
+}
+
+body.dark header{
+    background-color:#333;
+}
+
+body.dark .task{
+    background-color:#333;
+    color:white;
+}
+
+body.dark input,
+body.dark textarea,
+body.dark select{
+    background-color:#444;
+    color:white;
+    border:1px solid #777;
+}
+
+body.dark button{
+    background-color:lightcoral;
+    color:white;
+}

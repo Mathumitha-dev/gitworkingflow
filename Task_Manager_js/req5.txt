@@ -1,0 +1,1590 @@
+let edId=null;
+let edEt=null;
+let sid=new Set();
+let vid=[];
+let tasks=[];
+function createTask(event){
+    const title=document.getElementById("title").value;
+    const description=document.getElementById("description").value;
+    const dueDate=document.getElementById("dueDate").value;
+    const priority=document.getElementById("priority").value;
+    const category=document.getElementById("category").value;
+    if(!title||title.trim()===""){
+        alert("Title required");
+        return;
+    }
+    const task={
+        title:title.trim(),
+        description:description,
+        dueDate:dueDate,
+        priority:priority,
+        category:category
+    };
+    if(edId!==null){
+        updateTask(edId,task);
+        return;
+    }
+    fetch("http://localhost:3000/tasks",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(task)
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(task){
+        showtask(task);
+        document.getElementById("taskform").reset();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Task was not created");
+    });
+}
+function showtask(task){
+    const tasklist=document.getElementById("tasklist");
+    const et=document.createElement("div");
+    et.className="task";
+    vid.push(task.id);
+    const cb=document.createElement("input");
+    cb.type="checkbox";
+    cb.checked=task.status==="Completed";
+    const taskname=document.createElement("span");
+    taskname.textContent=task.title;
+    if(task.status==="Completed"){
+        taskname.style.textDecoration="line-through";
+    }
+    cb.onchange=function(){
+        toggleStatus(task,taskname,cb);
+    };
+    const sb=document.createElement("input");
+    sb.type="checkbox";
+    sb.className="taskSelectCheckbox";
+    sb.onchange=function(){
+        if(sb.checked){
+            sid.add(task.id);
+        }
+        else{
+            sid.delete(task.id);
+        }
+        updatebar();
+    };
+    sb.checked=sid.has(task.id);
+    const description=document.createElement("p");
+    description.textContent=task.description||"";
+    const date=document.createElement("p");
+    if(task.due_date){
+        date.textContent="Due date: "+task.due_date.substring(0,10);
+    }
+    else{
+        date.textContent="Due date: ";
+    }
+    const priority=document.createElement("p");
+    priority.textContent="Priority: "+(task.priority||"Medium");
+    const category=document.createElement("p");
+    category.textContent="Category: "+(task.category||"");
+    const eb=document.createElement("button");
+    eb.type="button";
+    eb.textContent="Edit";
+    eb.onclick=function(){
+        editTask(task,et);
+    };
+    const db=document.createElement("button");
+    db.type="button";
+    db.textContent="Delete";
+    db.onclick=function(){
+        deleteTask(task,et);
+    };
+    et.appendChild(cb);
+    et.appendChild(sb);
+    et.appendChild(taskname);
+    et.appendChild(description);
+    et.appendChild(date);
+    et.appendChild(priority);
+    et.appendChild(category);
+    et.appendChild(eb);
+    et.appendChild(db);
+    tasklist.appendChild(et);
+    updatebar();
+}
+
+function loadTasks(){
+    fetch("http://localhost:3000/tasks")
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(tasks){
+        const tasklist=document.getElementById("tasklist");
+        tasklist.innerHTML="";
+        sid.clear();
+        vid=[];
+        for(let i=0;i<tasks.length;i++){ 
+            showtask(tasks[i]); 
+        }
+        updatebar();
+    })
+    .catch(error => 
+        { console.log(error); 
+        })
+}
+function editTask(task,et){
+    edId=task.id;
+    edEt=et;
+    document.getElementById("title").value=task.title;
+    document.getElementById("description").value=task.description||"";
+    const ele=document.getElementById("dueDate");
+    if(task.due_date){
+        const datecorrect=task.due_date.substring(0,10);
+        ele.value=datecorrect;
+    }
+    else{
+        ele.value="";
+    }
+    document.getElementById("priority").value=task.priority||"Medium";
+    document.getElementById("category").value=task.category||"";
+    document.getElementById("saveButton").textContent="save";
+    document.getElementById("cancelButton").style.display="inline";
+}
+function updateTask(id,task){
+    fetch("http://localhost:3000/tasks/"+id,{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(task)
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(updatedtask){
+        edEt.remove();
+        vid=vid.filter(function(item){
+            return item!==id;
+        });
+        showtask(updatedtask);
+        document.getElementById("taskform").reset();
+        document.getElementById("saveButton").textContent="add";
+        document.getElementById("cancelButton").style.display="none";
+        edId=null;
+        edEt=null;
+    })
+    .catch(error=>{
+        console.log(error);
+        alert("Task was not updated");
+    });
+}
+
+function cancelEdit(){
+    document.getElementById("taskform").reset();
+    document.getElementById("saveButton").textContent="Save";
+    document.getElementById("cancelButton").style.display="none";
+    edId=null;
+    edEt=null;
+}
+function deleteTask(task,et){
+    const ok=confirm("Are you sureto delete this task?");
+    if(!ok){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/"+task.id,{
+        method:"DELETE"
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        et.remove();
+        sid.delete(task.id);
+        vid=vid.filter(function(id){
+            return id!==task.id;
+        });
+        updatebar();
+
+        if(edId===task.id){
+            cancelEdit();
+        }
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Task was not deleted");
+    });
+}
+
+function toggleStatus(task,taskname,checkbox){
+    let status;
+    if(checkbox.checked){
+       status="Completed";
+    }
+   else{
+       status="Pending";
+    }
+    if(checkbox.checked){
+        taskname.style.textDecoration="line-through";
+    }
+    else{
+        taskname.style.textDecoration="none";
+    }
+    fetch("http://localhost:3000/tasks/"+task.id+"/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            status:status
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(updatedtask){
+        task.status=updatedtask.status;
+        checkbox.checked=updatedtask.status==="Completed";
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Status was not updated");
+    });
+}
+function selectAllTasks(){
+    const sa=document.getElementById("selectAllCheckbox");
+    if(sa.checked){   
+       for(let i=0;i<vid.length;i++){
+           sid.add(vid[i]);
+       }
+    }
+    else{
+        vid.forEach(function(id){
+            sid.delete(id);
+        });
+    }
+    document.querySelectorAll(".taskSelectCheckbox").forEach(function(cb,index){
+        cb.checked=sid.has(vid[index]);
+    });
+    updatebar();
+}
+
+function updatebar(){
+    const bar=document.getElementById("bulkActionBar");
+    const count=document.getElementById("selectedCount");
+    const sa=document.getElementById("selectAllCheckbox");
+    count.textContent=sid.size+" selected";
+    if(sid.size>0){
+        bar.style.display="block";
+    }
+    else{
+        bar.style.display="none";
+    }
+    let all=true;
+    if(vid.length==0){
+        all=false;
+    }
+    for(let i=0;i<vid.length;i++){ 
+        if(!sid.has(vid[i])){ 
+            all=false; 
+        } 
+    }
+    let some=false;
+    for(let i=0;i<vid.length;i++){
+       if(sid.has(vid[i])){
+           some=true;
+       }
+    }
+    sa.checked=all;
+    sa.indeterminate=!all&&some;
+}
+function bulkMarkComplete(){
+    const ids=Array.from(sid);
+
+    if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            status:"Completed"
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk complete failed");
+    });
+}
+
+function bulkMarkIncomplete(){
+    const ids=Array.from(sid);
+        if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            status:"Pending"
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk incomplete failed");
+    });
+}
+function bulkDelete(){
+    const ids=Array.from(sid);
+    if(ids.length===0){
+        return;
+    }
+    const ok=confirm("Are you sure you want to delete selected tasks?");
+    if(!ok){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/delete",{
+        method:"DELETE",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk delete failed");
+    });
+}
+function bulkMoveCategory(){
+    const category=prompt("Enter category");
+    if(category===null){
+        return;
+    }
+    if(category.trim()===""){
+        alert("Categor required");
+        return;
+    }
+    const ids=Array.from(sid);
+    if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/category",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            category:category.trim()
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk category update failed");
+    });
+}
+loadTasks();
+
+
+requirement 7
+
+let edId=null;
+let edEt=null;
+let sid=new Set();
+let vid=[];
+let tasks=[];
+function createTask(event){
+    const title=document.getElementById("title").value;
+    const description=document.getElementById("description").value;
+    const dueDate=document.getElementById("dueDate").value;
+    const priority=document.getElementById("priority").value;
+    const category=document.getElementById("category").value;
+    if(!title||title.trim()===""){
+        alert("Title required");
+        return;
+    }
+    const task={
+        title:title.trim(),
+        description:description,
+        dueDate:dueDate,
+        priority:priority,
+        category:category
+    };
+    if(edId!==null){
+        updateTask(edId,task);
+        return;
+    }
+    fetch("http://localhost:3000/tasks",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(task)
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(task){
+        showtask(task);
+        document.getElementById("taskform").reset();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Task was not created");
+    });
+}
+function showtask(task){
+    const tasklist=document.getElementById("tasklist");
+    const et=document.createElement("div");
+    et.className="task";
+    vid.push(task.id);
+    const cb=document.createElement("input");
+    cb.type="checkbox";
+    cb.checked=task.status==="Completed";
+    const taskname=document.createElement("span");
+    taskname.textContent=task.title;
+    if(task.status==="Completed"){
+        taskname.style.textDecoration="line-through";
+    }
+    cb.onchange=function(){
+        toggleStatus(task,taskname,cb);
+    };
+    const sb=document.createElement("input");
+    sb.type="checkbox";
+    sb.className="taskSelectCheckbox";
+    sb.onchange=function(){
+        if(sb.checked){
+            sid.add(task.id);
+        }
+        else{
+            sid.delete(task.id);
+        }
+        updatebar();
+    };
+    sb.checked=sid.has(task.id);
+    const description=document.createElement("p");
+    description.textContent=task.description||"";
+    const date=document.createElement("p");
+    if(task.due_date){
+        date.textContent="Due date: "+task.due_date.substring(0,10);
+    }
+    else{
+        date.textContent="Due date: ";
+    }
+    const priority=document.createElement("p");
+    priority.textContent="Priority: "+(task.priority||"Medium");
+    const category=document.createElement("p");
+    category.textContent="Category: "+(task.category||"");
+    const eb=document.createElement("button");
+    eb.type="button";
+    eb.textContent="Edit";
+    eb.onclick=function(){
+        editTask(task,et);
+    };
+    const db=document.createElement("button");
+    db.type="button";
+    db.textContent="Delete";
+    db.onclick=function(){
+        deleteTask(task,et);
+    };
+    et.appendChild(cb);
+    et.appendChild(sb);
+    et.appendChild(taskname);
+    et.appendChild(description);
+    et.appendChild(date);
+    et.appendChild(priority);
+    et.appendChild(category);
+    et.appendChild(eb);
+    et.appendChild(db);
+    tasklist.appendChild(et);
+    updatebar();
+}
+
+function loadTasks(){
+    fetch("http://localhost:3000/tasks")
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(data){
+        // const tasklist=document.getElementById("tasklist");
+        // tasklist.innerHTML="";
+        // sid.clear();
+        // vid=[];
+        // for(let i=0;i<tasks.length;i++){ 
+        //     showtask(tasks[i]); 
+        // }
+        // updatebar();
+        tasks=data;
+        categoryLoad();
+        filterLoad();
+        filterTask();
+
+    })
+    .catch(error => 
+        { console.log(error); 
+        })
+}
+// function Taskfilter(){
+//     const status=document.getElementById("statusfilter").value;
+//     const priority=document.getElementById("priorityfilter").value;
+//     const category=document.getElementById("categoryfilter").value;
+//     const filtered=[];
+//     for(let i=0;i<tasks.length;i++){
+//         const task=tasks[i];
+//         if(status!=="All" && task.status!==status){
+//             continue;
+//         }
+//         if(priority!=="All" && task.priority!==priority){
+//             continue;
+//         }
+//         if(category!=="All" && task.priority!==priority){
+//             continue;
+//         }
+//         filtered.push(task);
+
+//     }
+//     const 
+
+// }
+
+
+function filterTask(){
+    const status=document.getElementById("statusfilter").value;
+    const priority=document.getElementById("priorityfilter").value;
+    const category=document.getElementById("categoryfilter").value;
+    const filtered=[];
+    for(let i=0;i<tasks.length;i++){
+        const task=tasks[i];
+        if(status!=="All"&&task.status!==status){
+            continue;
+        }
+        if(priority!=="All"&&task.priority!==priority){
+            continue;
+        }
+        if(category!=="All"&&task.category!==category){
+            continue;
+        }
+        filtered.push(task);
+    }
+    const params=new URLSearchParams();
+    if(status!=="All"){
+        params.set("status",status);
+    }
+    if(priority!=="All"){
+        params.set("priority",priority);
+    }
+    if(category!=="All"){
+        params.set("category",category);
+    }
+    const query=params.toString();
+    if(query){
+        history.replaceState(null,"","?"+query);
+    }
+    else{
+        history.replaceState(null,"",window.location.pathname);
+    }
+    const tasklist=document.getElementById("tasklist");
+    tasklist.innerHTML="";
+    vid=[];
+    for(let i=0;i<filtered.length;i++){
+        showtask(filtered[i]);
+    }
+    updatebar();
+}
+function categoryLoad(){
+    const category=document.getElementById("categoryfilter");
+    category.innerHTML=`<option value="All">All</option>`
+    const categories=[];
+    for(let i=0;i<tasks.length;i++){
+        if(tasks[i].category){
+            if(!categories.includes(tasks[i].category)){
+                categories.push(tasks[i].category);
+            }
+        }
+    }
+    for(let i=0;i<categories.length;i++){
+        const option=document.createElement("option");
+        option.value=categories[i];
+        option.textContent=categories[i];
+        category.appendChild(option);
+    }
+}
+function filterLoad(){
+    const params=new URLSearchParams(window.location.search);
+    const status=params.get("status");
+    const priority=params.get("priority");
+    const category=params.get("category");
+    if(status){
+        document.getElementById("statusfilter").value=status;
+    }
+    if(priority){ 
+        document.getElementById("priorityFilter").value=priority;
+     }
+     if(category){ 
+        document.getElementById("categoryFilter").value=category;
+     }
+}
+function editTask(task,et){
+    edId=task.id;
+    edEt=et;
+    document.getElementById("title").value=task.title;
+    document.getElementById("description").value=task.description||"";
+    const ele=document.getElementById("dueDate");
+    if(task.due_date){
+        const datecorrect=task.due_date.substring(0,10);
+        ele.value=datecorrect;
+    }
+    else{
+        ele.value="";
+    }
+    document.getElementById("priority").value=task.priority||"Medium";
+    document.getElementById("category").value=task.category||"";
+    document.getElementById("saveButton").textContent="save";
+    document.getElementById("cancelButton").style.display="inline";
+}
+function updateTask(id,task){
+    fetch("http://localhost:3000/tasks/"+id,{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(task)
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(updatedtask){
+        edEt.remove();
+        vid=vid.filter(function(item){
+            return item!==id;
+        });
+        showtask(updatedtask);
+        document.getElementById("taskform").reset();
+        document.getElementById("saveButton").textContent="add";
+        document.getElementById("cancelButton").style.display="none";
+        edId=null;
+        edEt=null;
+    })
+    .catch(error=>{
+        console.log(error);
+        alert("Task was not updated");
+    });
+}
+
+function cancelEdit(){
+    document.getElementById("taskform").reset();
+    document.getElementById("saveButton").textContent="Save";
+    document.getElementById("cancelButton").style.display="none";
+    edId=null;
+    edEt=null;
+}
+function deleteTask(task,et){
+    const ok=confirm("Are you sureto delete this task?");
+    if(!ok){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/"+task.id,{
+        method:"DELETE"
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        et.remove();
+        sid.delete(task.id);
+        vid=vid.filter(function(id){
+            return id!==task.id;
+        });
+        updatebar();
+
+        if(edId===task.id){
+            cancelEdit();
+        }
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Task was not deleted");
+    });
+}
+
+function toggleStatus(task,taskname,checkbox){
+    let status;
+    if(checkbox.checked){
+       status="Completed";
+    }
+   else{
+       status="Pending";
+    }
+    if(checkbox.checked){
+        taskname.style.textDecoration="line-through";
+    }
+    else{
+        taskname.style.textDecoration="none";
+    }
+    fetch("http://localhost:3000/tasks/"+task.id+"/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            status:status
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(updatedtask){
+        task.status=updatedtask.status;
+        checkbox.checked=updatedtask.status==="Completed";
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Status was not updated");
+    });
+}
+function selectAllTasks(){
+    const sa=document.getElementById("selectAllCheckbox");
+    if(sa.checked){   
+       for(let i=0;i<vid.length;i++){
+           sid.add(vid[i]);
+       }
+    }
+    else{
+        vid.forEach(function(id){
+            sid.delete(id);
+        });
+    }
+    document.querySelectorAll(".taskSelectCheckbox").forEach(function(cb,index){
+        cb.checked=sid.has(vid[index]);
+    });
+    updatebar();
+}
+
+function updatebar(){
+    const bar=document.getElementById("bulkActionBar");
+    const count=document.getElementById("selectedCount");
+    const sa=document.getElementById("selectAllCheckbox");
+    count.textContent=sid.size+" selected";
+    if(sid.size>0){
+        bar.style.display="block";
+    }
+    else{
+        bar.style.display="none";
+    }
+    let all=true;
+    if(vid.length==0){
+        all=false;
+    }
+    for(let i=0;i<vid.length;i++){ 
+        if(!sid.has(vid[i])){ 
+            all=false; 
+        } 
+    }
+    let some=false;
+    for(let i=0;i<vid.length;i++){
+       if(sid.has(vid[i])){
+           some=true;
+       }
+    }
+    sa.checked=all;
+    sa.indeterminate=!all&&some;
+}
+function bulkMarkComplete(){
+    const ids=Array.from(sid);
+
+    if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            status:"Completed"
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk complete failed");
+    });
+}
+
+function bulkMarkIncomplete(){
+    const ids=Array.from(sid);
+        if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            status:"Pending"
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk incomplete failed");
+    });
+}
+function bulkDelete(){
+    const ids=Array.from(sid);
+    if(ids.length===0){
+        return;
+    }
+    const ok=confirm("Are you sure you want to delete selected tasks?");
+    if(!ok){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/delete",{
+        method:"DELETE",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk delete failed");
+    });
+}
+function bulkMoveCategory(){
+    const category=prompt("Enter category");
+    if(category===null){
+        return;
+    }
+    if(category.trim()===""){
+        alert("Categor required");
+        return;
+    }
+    const ids=Array.from(sid);
+    if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/category",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            category:category.trim()
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk category update failed");
+    });
+}
+loadTasks();
+
+req8
+let edId=null;
+let edEt=null;
+let sid=new Set();
+let vid=[];
+let searchtimer=null;
+let tasks=[];
+function createTask(event){
+    const title=document.getElementById("title").value;
+    const description=document.getElementById("description").value;
+    const dueDate=document.getElementById("dueDate").value;
+    const priority=document.getElementById("priority").value;
+    const category=document.getElementById("category").value;
+    if(!title||title.trim()===""){
+        alert("Title required");
+        return;
+    }
+    const task={
+        title:title.trim(),
+        description:description,
+        dueDate:dueDate,
+        priority:priority,
+        category:category
+    };
+    if(edId!==null){
+        updateTask(edId,task);
+        return;
+    }
+    fetch("http://localhost:3000/tasks",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(task)
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(task){
+        showtask(task);
+        document.getElementById("taskform").reset();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Task was not created");
+    });
+}
+function showtask(task){
+    const tasklist=document.getElementById("tasklist");
+    const et=document.createElement("div");
+    et.className="task";
+    vid.push(task.id);
+    const cb=document.createElement("input");
+    cb.type="checkbox";
+    cb.checked=task.status==="Completed";
+    const taskname=document.createElement("span");
+    taskname.textContent=task.title;
+    if(task.status==="Completed"){
+        taskname.style.textDecoration="line-through";
+    }
+    cb.onchange=function(){
+        toggleStatus(task,taskname,cb);
+    };
+    const sb=document.createElement("input");
+    sb.type="checkbox";
+    sb.className="taskSelectCheckbox";
+    sb.onchange=function(){
+        if(sb.checked){
+            sid.add(task.id);
+        }
+        else{
+            sid.delete(task.id);
+        }
+        updatebar();
+    };
+    sb.checked=sid.has(task.id);
+    const description=document.createElement("p");
+    description.textContent=task.description||"";
+    const date=document.createElement("p");
+    if(task.due_date){
+        date.textContent="Due date: "+task.due_date.substring(0,10);
+    }
+    else{
+        date.textContent="Due date: ";
+    }
+    const priority=document.createElement("p");
+    priority.textContent="Priority: "+(task.priority||"Medium");
+    const category=document.createElement("p");
+    category.textContent="Category: "+(task.category||"");
+    const eb=document.createElement("button");
+    eb.type="button";
+    eb.textContent="Edit";
+    eb.onclick=function(){
+        editTask(task,et);
+    };
+    const db=document.createElement("button");
+    db.type="button";
+    db.textContent="Delete";
+    db.onclick=function(){
+        deleteTask(task,et);
+    };
+    et.appendChild(cb);
+    et.appendChild(sb);
+    et.appendChild(taskname);
+    et.appendChild(description);
+    et.appendChild(date);
+    et.appendChild(priority);
+    et.appendChild(category);
+    et.appendChild(eb);
+    et.appendChild(db);
+    tasklist.appendChild(et);
+    updatebar();
+}
+
+function loadTasks(){
+    fetch("http://localhost:3000/tasks")
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(data){
+        // const tasklist=document.getElementById("tasklist");
+        // tasklist.innerHTML="";
+        // sid.clear();
+        // vid=[];
+        // for(let i=0;i<tasks.length;i++){ 
+        //     showtask(tasks[i]); 
+        // }
+        // updatebar();
+        tasks=data;
+        categoryLoad();
+        filterLoad();
+        filterTask();
+
+    })
+    .catch(error => 
+        { console.log(error); 
+        })
+}
+// function Taskfilter(){
+//     const status=document.getElementById("statusfilter").value;
+//     const priority=document.getElementById("priorityfilter").value;
+//     const category=document.getElementById("categoryfilter").value;
+//     const filtered=[];
+//     for(let i=0;i<tasks.length;i++){
+//         const task=tasks[i];
+//         if(status!=="All" && task.status!==status){
+//             continue;
+//         }
+//         if(priority!=="All" && task.priority!==priority){
+//             continue;
+//         }
+//         if(category!=="All" && task.priority!==priority){
+//             continue;
+//         }
+//         filtered.push(task);
+
+//     }
+//     const 
+
+// }
+
+
+function filterTask(){
+    const status=document.getElementById("statusfilter").value;
+    const priority=document.getElementById("priorityfilter").value;
+    const category=document.getElementById("categoryfilter").value;
+    const search=document.getElementById("searchinput").value.toLowerCase();
+    const filtered=[];
+    for(let i=0;i<tasks.length;i++){
+        const task=tasks[i];
+        if(status!=="All"){
+            if(task.status!==status){
+                continue;
+            }  
+        }
+        if(priority!=="All"){
+            if(task.priority!==priority){
+                continue;
+            }
+        }
+        if(category!=="All"){
+            if(task.category!==category){
+                continue;
+            }
+        }
+        if(search!==""){ 
+            const title=task.title.toLowerCase(); 
+            const description=(task.description||"").toLowerCase(); 
+            if(!title.includes(search)&&!description.includes(search)){ 
+                continue; 
+            } 
+        }
+        filtered.push(task);
+    }
+    const params=new URLSearchParams();
+    if(status!=="All"){
+        params.set("status",status);
+    }
+    if(priority!=="All"){
+        params.set("priority",priority);
+    }
+    if(category!=="All"){
+        params.set("category",category);
+    }
+    const query=params.toString();
+    if(query){
+        history.replaceState(null,"","?"+query);
+    }
+    else{
+        history.replaceState(null,"",window.location.pathname);
+    }
+    const tasklist=document.getElementById("tasklist");
+    tasklist.innerHTML="";
+    vid=[];
+    for(let i=0;i<filtered.length;i++){
+        showtask(filtered[i]);
+    }
+    updatebar();
+}
+function searching(){
+    clearTimeout(searchtimer);
+    searchtimer=setTimeout(function(){
+         filterTask(); 
+        },300);
+}
+function categoryLoad(){
+    const category=document.getElementById("categoryfilter");
+    category.innerHTML=`<option value="All">All</option>`
+    const categories=[];
+    for(let i=0;i<tasks.length;i++){
+        if(tasks[i].category){
+            if(!categories.includes(tasks[i].category)){
+                categories.push(tasks[i].category);
+            }
+        }
+    }
+    for(let i=0;i<categories.length;i++){
+        const option=document.createElement("option");
+        option.value=categories[i];
+        option.textContent=categories[i];
+        category.appendChild(option);
+    }
+}
+function filterLoad(){
+    const params=new URLSearchParams(window.location.search);
+    const status=params.get("status");
+    const priority=params.get("priority");
+    const category=params.get("category");
+    if(status){
+        document.getElementById("statusfilter").value=status;
+    }
+    if(priority){ 
+        document.getElementById("priorityfilter").value=priority;
+     }
+     if(category){ 
+        document.getElementById("categoryfilter").value=category;
+     }
+}
+function editTask(task,et){
+    edId=task.id;
+    edEt=et;
+    document.getElementById("title").value=task.title;
+    document.getElementById("description").value=task.description||"";
+    const ele=document.getElementById("dueDate");
+    if(task.due_date){
+        const datecorrect=task.due_date.substring(0,10);
+        ele.value=datecorrect;
+    }
+    else{
+        ele.value="";
+    }
+    document.getElementById("priority").value=task.priority||"Medium";
+    document.getElementById("category").value=task.category||"";
+    document.getElementById("saveButton").textContent="save";
+    document.getElementById("cancelButton").style.display="inline";
+}
+function updateTask(id,task){
+    fetch("http://localhost:3000/tasks/"+id,{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify(task)
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(updatedtask){
+        edEt.remove();
+        vid=vid.filter(function(item){
+            return item!==id;
+        });
+        showtask(updatedtask);
+        document.getElementById("taskform").reset();
+        document.getElementById("saveButton").textContent="add";
+        document.getElementById("cancelButton").style.display="none";
+        edId=null;
+        edEt=null;
+    })
+    .catch(error=>{
+        console.log(error);
+        alert("Task was not updated");
+    });
+}
+
+function cancelEdit(){
+    document.getElementById("taskform").reset();
+    document.getElementById("saveButton").textContent="Save";
+    document.getElementById("cancelButton").style.display="none";
+    edId=null;
+    edEt=null;
+}
+function deleteTask(task,et){
+    const ok=confirm("Are you sureto delete this task?");
+    if(!ok){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/"+task.id,{
+        method:"DELETE"
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        et.remove();
+        sid.delete(task.id);
+        vid=vid.filter(function(id){
+            return id!==task.id;
+        });
+        updatebar();
+
+        if(edId===task.id){
+            cancelEdit();
+        }
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Task was not deleted");
+    });
+}
+
+function toggleStatus(task,taskname,checkbox){
+    let status;
+    if(checkbox.checked){
+       status="Completed";
+    }
+   else{
+       status="Pending";
+    }
+    if(checkbox.checked){
+        taskname.style.textDecoration="line-through";
+    }
+    else{
+        taskname.style.textDecoration="none";
+    }
+    fetch("http://localhost:3000/tasks/"+task.id+"/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            status:status
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(updatedtask){
+        task.status=updatedtask.status;
+        checkbox.checked=updatedtask.status==="Completed";
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Status was not updated");
+    });
+}
+function selectAllTasks(){
+    const sa=document.getElementById("selectAllCheckbox");
+    if(sa.checked){   
+       for(let i=0;i<vid.length;i++){
+           sid.add(vid[i]);
+       }
+    }
+    else{
+        vid.forEach(function(id){
+            sid.delete(id);
+        });
+    }
+    document.querySelectorAll(".taskSelectCheckbox").forEach(function(cb,index){
+        cb.checked=sid.has(vid[index]);
+    });
+    updatebar();
+}
+
+function updatebar(){
+    const bar=document.getElementById("bulkActionBar");
+    const count=document.getElementById("selectedCount");
+    const sa=document.getElementById("selectAllCheckbox");
+    count.textContent=sid.size+" selected";
+    if(sid.size>0){
+        bar.style.display="block";
+    }
+    else{
+        bar.style.display="none";
+    }
+    let all=true;
+    if(vid.length==0){
+        all=false;
+    }
+    for(let i=0;i<vid.length;i++){ 
+        if(!sid.has(vid[i])){ 
+            all=false; 
+        } 
+    }
+    let some=false;
+    for(let i=0;i<vid.length;i++){
+       if(sid.has(vid[i])){
+           some=true;
+       }
+    }
+    sa.checked=all;
+    sa.indeterminate=!all&&some;
+}
+function bulkMarkComplete(){
+    const ids=Array.from(sid);
+
+    if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            status:"Completed"
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk complete failed");
+    });
+}
+
+function bulkMarkIncomplete(){
+    const ids=Array.from(sid);
+        if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/status",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            status:"Pending"
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk incomplete failed");
+    });
+}
+function bulkDelete(){
+    const ids=Array.from(sid);
+    if(ids.length===0){
+        return;
+    }
+    const ok=confirm("Are you sure you want to delete selected tasks?");
+    if(!ok){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/delete",{
+        method:"DELETE",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk delete failed");
+    });
+}
+function bulkMoveCategory(){
+    const category=prompt("Enter category");
+    if(category===null){
+        return;
+    }
+    if(category.trim()===""){
+        alert("Categor required");
+        return;
+    }
+    const ids=Array.from(sid);
+    if(ids.length===0){
+        return;
+    }
+    fetch("http://localhost:3000/tasks/bulk/category",{
+        method:"PUT",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            category:category.trim()
+        })
+    })
+    .then(function(res){
+        return res.json();
+    })
+    .then(function(){
+        sid.clear();
+        loadTasks();
+    })
+    .catch(function(error){
+        console.log(error);
+        alert("Bulk category update failed");
+    });
+}
+loadTasks();
+
+
+
+
+
+
+
+
+
+
+
+
+
+const pool = require("../db/db.js");
+
+async function getTasks() {
+    const query=`select * from tasks order by id`;
+    const result=await pool.query(query);
+    return result;
+}
+
+async function createTask(task) {
+    const query=`insert into tasks (title, description, due_date, priority, category)
+    values ($1, $2, $3, $4, $5)`;
+
+    const values=[task.title,task.description,task.dueDate,task.priority,task.category];
+
+    await pool.query(query,values);
+
+    const getresult=`select * from tasks where title=$1 order by id desc limit 1`;
+    const result=await pool.query(getresult,[task.title]);
+
+    return result;
+}
+
+async function updatetask(id,task){
+    const query=`update tasks set title=$1,description=$2,due_date=$3,priority=$4,category=$5 where id=$6`;
+
+    const values=[task.title,task.description,task.dueDate,task.priority,task.category,id];
+
+    await pool.query(query,values);
+
+    const result=await pool.query(`select * from tasks where id=$1`,[id]);
+
+    return result;
+}
+
+async function deleteTask(id){
+    const query=`delete from tasks where id=$1`;
+
+    await pool.query(query,[id]);
+}
+
+async function updateStatus(id,status){
+    const query=`update tasks set status=$1 where id=$2`;
+
+    await pool.query(query,[status,id]);
+
+    const result=await pool.query(`select * from tasks where id=$1`,[id]);
+
+    return result;
+}
+
+async function bulkStatus(ids,status){
+    const query=`update tasks set status=$1 where id=ANY($2)`;
+
+    await pool.query(query,[status,ids]);
+
+    const result=await pool.query(`select * from tasks where id=ANY($1)`,[ids]);
+
+    return result;
+}
+
+async function bulkDelete(ids){
+    const query=`delete from tasks where id=ANY($1)`;
+
+    await pool.query(query,[ids]);
+}
+
+async function bulkCategory(ids,category){
+    const query=`update tasks set category=$1 where id=ANY($2)`;
+
+    await pool.query(query,[category,ids]);
+
+    const result=await pool.query(`select * from tasks where id=ANY($1)`,[ids]);
+
+    return result;
+}
+
+module.exports={
+    getTasks,
+    createTask,
+    updatetask,
+    deleteTask,
+    updateStatus,
+    bulkStatus,
+    bulkDelete,
+    bulkCategory
+};
