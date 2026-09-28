@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<button id="themeButton" onclick="toggleTheme()">Dark Mode</button>
+<h1>Task Manager</h1>
+<form id="taskform" onsubmit="createTask(event)">
+    <input type="text" id="title" placeholder="Task title">
+    <input type="text" id="description" placeholder="Description">
+    <input type="date" id="dueDate">
+    <select id="priority">
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+        <option value="High">High</option>
+    </select>
+    <input type="text" id="category" placeholder="Category" list="categoryOptions">
+    <datalist id="categoryOptions"></datalist>
+    <button type="submit" id="saveButton">add</button>
+</form>
+<button type="button" id="cancelButton" onclick="cancelEdit()" style="display:none;">Cancel</button>
+<section id="categorySettings">
+    <h2>Categories</h2>
+    <form onsubmit="addCategory(event)">
+        <input type="text" id="newCategoryName" placeholder="New category" required>
+        <input type="color" id="newCategoryColor" value="#3478f6" aria-label="Category color">
+        <button type="submit">Add category</button>
+    </form>
+    <select id="manageCategorySelect" aria-label="Choose category to manage" onchange="loadManagedCategoryColor()"></select>
+    <input type="color" id="manageCategoryColor" value="#3478f6" aria-label="Selected category color" oninput="changeCategoryColor()">
+    <button type="button" onclick="renameCategory()">Rename</button>
+    <button type="button" onclick="deleteCategory()">Delete</button>
+</section>
+<div>
+<input type="checkbox" id="selectAllCheckbox" onchange="selectAllTasks()">
+<label for="selectAllCheckbox">Select all</label>
+</div>
+<div id="bulkActionBar" style="display:none;">
+    <p id="selectedCount">0 selected</p>
+    <button type="button" onclick="bulkMarkComplete()">Mark Complete</button>
+    <button type="button" onclick="bulkMarkIncomplete()">Mark Incomplete</button>
+    <button type="button" onclick="bulkDelete()">Delete</button>
+    <button type="button" onclick="bulkMoveCategory()">Move to Category</button>
+</div>
+<div>
+    <input type="text" id="searchinput" placeholder="search task" oninput="searching()">
+    <select id="statusfilter" onchange="filterTask()">
+        <option value="All">All</option>
+        <option value="Pending">Pending</option>
+        <option value="Completed">Completed</option>
+    </select>
+    <select id="priorityfilter" onchange="filterTask()">
+        <option value="All">All</option>
+        <option value="Low">Low</option>
+        <option value="Medium">Medium</option>
+        <option value="High">High</option>
+    </select>
+    <select id="categoryfilter" onchange="filterTask()">
+        <option value="All">All</option>
+    </select>
+    <select id="sortfilter" onchange="filterTask()">
+        <option value="none">Default</option>
+        <option value="ds">Due date-soonest first</option>
+        <option value="dl">Due date-latest first</option>
+        <option value="prlow">Priority-low to High</option>
+        <option value="prhigh">Priority-high to Low</option>
+       <option value="cold">Created date-oldest first</option>
+       <option value="cnew">Created date-newest first</option>
+    </select>   
+</div>
+
+<div id="loadingMessage" style="display:none;">
+    Loading tasks...
+</div>
+
+<div id="errorMessage" style="display:none;">
+    Failed to load tasks.
+    <button type="button" onclick="loadTasks()">Retry</button>
+</div>
+<div id="undoMessage" style="display:none;">
+Task deleted
+<button type="button" onclick="undoDelete()">Undo</button>
+</div>
+<div id="undobox" style="display:none">
+    <p>Task deleted</p>
+     <button onclick="undoDelete()">Undo</button>
+</div>
+
+
+<div id="tasklist"></div>
+<div id="loadMoreTasks" role="status" hidden>More tasks will load as you scroll.</div>
+<script src="js/task/config.js"></script>
+
+<script src="js/task/undo.js"></script>
+<script src="js/task/theme.js"></script>
+<script src="js/task/deletetask.js"></script>
+<script src="js/task/edittask.js"></script>
+<script src="js/task/searchtask.js"></script>
+<script src="js/task/taskdisplay.js"></script>
+<script src="js/task/statustask.js"></script>
+<script src="js/task/createtask.js"></script>
+<script src="js/task/filtertask.js"></script>
+<script src="js/task/filterload.js"></script>
+<script src="js/task/selecttask.js"></script>
+<script src="js/task/bulktask.js"></script>
+<script src="js/task/categorytask.js"></script>
+<script src="js/task/dragtask.js"></script>
+<script src="js/task/loadtask.js"></script>
+
+</body>
+</html>
